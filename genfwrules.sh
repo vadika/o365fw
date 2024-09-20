@@ -11,8 +11,8 @@ curl -s "$ENDPOINTS_URL" > "$TEMP_FILE"
 # Function to preprocess URLs
 preprocess_url() {
     local url="$1"
-    # Remove "*." prefix if present
-    echo "${url#\*.}"
+    # Replace "*." prefix with "." if present
+    echo "${url/\*./\.}"
 }
 
 # Function to generate iptables rules
