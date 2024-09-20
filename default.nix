@@ -1,7 +1,7 @@
 { pkgs ? import <nixpkgs> {} }:
 
 pkgs.stdenv.mkDerivation rec {
-  pname = "genfwrules";
+  pname = "o365fw";
   version = "0.1.0";
 
   src = ./.;
