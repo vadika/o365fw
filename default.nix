@@ -22,9 +22,9 @@ stdenv.mkDerivation rec {
 
   meta = with lib; {
     description = "Generate firewall rules for Office 365 endpoints";
-    homepage = "https://github.com/yourusername/genfwrules";
+    homepage = "https://github.com/vadika/o365fw";
     license = licenses.mit;
-    maintainers = with maintainers; [ yourusername ];
+    maintainers = with maintainers; [ vadika ];
     platforms = platforms.all;
   };
 }
