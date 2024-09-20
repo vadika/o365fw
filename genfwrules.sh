@@ -1,8 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+set -euo pipefail
 
 # Fetch Office 365 endpoints
 ENDPOINTS_URL="https://endpoints.office.com/endpoints/worldwide?clientrequestid=b10c5ed1-bad1-445f-b386-b919946339a7"
-TEMP_FILE="/tmp/o365_endpoints.json"
+TEMP_FILE=$(mktemp)
 
 curl -s "$ENDPOINTS_URL" > "$TEMP_FILE"
 
@@ -46,9 +48,24 @@ generate_pf_rules() {
     echo "# Consider using a proxy or next-gen firewall for URL filtering"
 }
 
-# Generate rules (uncomment the one you need)
-generate_iptables_rules
-# generate_pf_rules
+# Main function
+main() {
+    case "${1:-iptables}" in
+        iptables)
+            generate_iptables_rules
+            ;;
+        pf)
+            generate_pf_rules
+            ;;
+        *)
+            echo "Usage: $0 [iptables|pf]"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"
 
 # Clean up
 rm "$TEMP_FILE"
