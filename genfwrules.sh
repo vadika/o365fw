@@ -14,7 +14,7 @@ generate_iptables_rules() {
     echo
 
     # Allow outbound traffic to Office 365 IP ranges
-    jq -r '.[] | select(.category == "Optimize" or .category == "Allow") | .ips[]?' "$TEMP_FILE" | sort -u | while read -r ip; do
+    jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .ips[]?' "$TEMP_FILE" | sort -u | while read -r ip; do
         if [[ $ip == *":"* ]]; then
             echo "ip6tables -A OUTPUT -d $ip -j ACCEPT"
         else
@@ -25,7 +25,7 @@ generate_iptables_rules() {
     echo
 
     # Allow outbound traffic to required URLs
-    jq -r '.[] | select(.category == "Optimize" or .category == "Allow") | .urls[]?' "$TEMP_FILE" | sort -u | while read -r url; do
+    jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$TEMP_FILE" | sort -u | while read -r url; do
         echo "iptables -A OUTPUT -p tcp --dport 80 -m string --string \"$url\" --algo bm -j ACCEPT"
         echo "iptables -A OUTPUT -p tcp --dport 443 -m string --string \"$url\" --algo bm -j ACCEPT"
     done
