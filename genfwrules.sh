@@ -8,6 +8,13 @@ TEMP_FILE=$(mktemp)
 
 curl -s "$ENDPOINTS_URL" > "$TEMP_FILE"
 
+# Function to preprocess URLs
+preprocess_url() {
+    local url="$1"
+    # Remove "*." prefix if present
+    echo "${url#\*.}"
+}
+
 # Function to generate iptables rules
 generate_iptables_rules() {
     echo "# Office 365 Firewall Rules"
@@ -26,8 +33,9 @@ generate_iptables_rules() {
 
     # Allow outbound traffic to required URLs
     jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$TEMP_FILE" | sort -u | while read -r url; do
-        echo "iptables -A OUTPUT -p tcp --dport 80 -m string --string \"$url\" --algo bm -j ACCEPT"
-        echo "iptables -A OUTPUT -p tcp --dport 443 -m string --string \"$url\" --algo bm -j ACCEPT"
+        processed_url=$(preprocess_url "$url")
+        echo "iptables -A OUTPUT -p tcp --dport 80 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
+        echo "iptables -A OUTPUT -p tcp --dport 443 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
     done
 }
 
@@ -46,6 +54,7 @@ generate_pf_rules() {
 
     echo "# URL-based rules are more complex in PF and may require application layer filtering"
     echo "# Consider using a proxy or next-gen firewall for URL filtering"
+    echo "# Note: URLs have been preprocessed to remove '*.' prefixes for compatibility"
 }
 
 # Main function
