@@ -50,38 +50,9 @@ pkgs.stdenv.mkDerivation rec {
         done
     }
 
-    # Function to generate PF (Packet Filter) rules for BSD systems
-    generate_pf_rules() {
-        echo "# Office 365 Firewall Rules for PF"
-        echo
-
-        echo "table <office365_ips> {"
-        jq -r '.[] | select(.category == "Optimize" or .category == "Allow") | .ips[]?' "$TEMP_FILE" | sort -u | sed 's/^/    /'
-        echo "}"
-        echo
-
-        echo "pass out quick to <office365_ips>"
-        echo
-
-        echo "# URL-based rules are more complex in PF and may require application layer filtering"
-        echo "# Consider using a proxy or next-gen firewall for URL filtering"
-        echo "# Note: URLs have been preprocessed to remove '*.' prefixes for compatibility"
-    }
-
     # Main function
     main() {
-        case "''${1:-iptables}" in
-            iptables)
-                generate_iptables_rules
-                ;;
-            pf)
-                generate_pf_rules
-                ;;
-            *)
-                echo "Usage: $0 [iptables|pf]"
-                exit 1
-                ;;
-        esac
+        generate_iptables_rules
     }
 
     # Run main function
@@ -98,10 +69,10 @@ pkgs.stdenv.mkDerivation rec {
   '';
 
   meta = with pkgs.lib; {
-    description = "Generate firewall rules for Office 365 endpoints";
+    description = "Generate iptables firewall rules for Office 365 endpoints";
     homepage = "https://github.com/vadika/o365fw";
     license = licenses.mit;
     maintainers = with maintainers; [ vadika ];
-    platforms = platforms.all;
+    platforms = platforms.linux;
   };
 }
