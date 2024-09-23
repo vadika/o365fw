@@ -56,5 +56,5 @@ let
   '';
 in
 {
-  inherit o365fw generateO365FWScript;
+  inherit o365fw generateO365FWScript runO365FWScript;
 }
