@@ -15,8 +15,8 @@ let
 
     preprocess_url() {
         local url="$1"
-        # Remove everything after and including the first wildcard
-        echo "''${url%%\**}"
+        # Return the URL as-is without any filtering
+        echo "$url"
     }
 
     generate_iptables_rules() {
