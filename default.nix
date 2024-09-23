@@ -19,23 +19,18 @@ let
     }
 
     generate_iptables_rules() {
-        echo "# Office 365 Firewall Rules"
-        echo
-
         jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .ips[]?' "$ENDPOINTS_FILE" | sort -u | while read -r ip; do
             if [[ $ip == *":"* ]]; then
-                echo "ip6tables -A OUTPUT -d $ip -j ACCEPT"
+                ip6tables -A OUTPUT -d "$ip" -j ACCEPT
             else
-                echo "iptables -A OUTPUT -d $ip -j ACCEPT"
+                iptables -A OUTPUT -d "$ip" -j ACCEPT
             fi
         done
 
-        echo
-
         jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$ENDPOINTS_FILE" | sort -u | while read -r url; do
             processed_url=$(preprocess_url "$url")
-            echo "iptables -A OUTPUT -p tcp --dport 80 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
-            echo "iptables -A OUTPUT -p tcp --dport 443 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
+            iptables -A OUTPUT -p tcp --dport 80 -m string --string "$processed_url" --algo bm -j ACCEPT
+            iptables -A OUTPUT -p tcp --dport 443 -m string --string "$processed_url" --algo bm -j ACCEPT
         done
     }
 
