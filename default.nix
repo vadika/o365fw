@@ -1,6 +1,11 @@
 { pkgs ? import <nixpkgs> {} }:
 
 let
+  endpointsFile = pkgs.fetchurl {
+    url = "https://endpoints.office.com/endpoints/worldwide?clientrequestid=b10c5ed1-bad1-445f-b386-b919946339a7";
+    sha256 = ""; # Replace with the actual SHA256 hash of the file
+  };
+
   generateO365FWScript = pkgs.writeTextFile {
     name = "generate-o365fw-script";
     text = ''
@@ -8,11 +13,8 @@ let
 
     set -euo pipefail
 
-    # Fetch Office 365 endpoints
-    ENDPOINTS_URL="https://endpoints.office.com/endpoints/worldwide?clientrequestid=b10c5ed1-bad1-445f-b386-b919946339a7"
-    TEMP_FILE=$(mktemp)
-
-    curl -s "$ENDPOINTS_URL" > "$TEMP_FILE"
+    # Use the prefetched endpoints file
+    ENDPOINTS_FILE="${endpointsFile}"
 
     # Function to preprocess URLs
     preprocess_url() {
@@ -27,7 +29,7 @@ let
         echo
 
         # Allow outbound traffic to Office 365 IP ranges
-        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .ips[]?' "$TEMP_FILE" | sort -u | while read -r ip; do
+        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .ips[]?' "$ENDPOINTS_FILE" | sort -u | while read -r ip; do
             if [[ $ip == *":"* ]]; then
                 echo "ip6tables -A OUTPUT -d $ip -j ACCEPT"
             else
@@ -38,7 +40,7 @@ let
         echo
 
         # Allow outbound traffic to required URLs
-        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$TEMP_FILE" | sort -u | while read -r url; do
+        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$ENDPOINTS_FILE" | sort -u | while read -r url; do
             processed_url=$(preprocess_url "$url")
             echo "iptables -A OUTPUT -p tcp --dport 80 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
             echo "iptables -A OUTPUT -p tcp --dport 443 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
@@ -53,8 +55,7 @@ let
     # Run main function
     main "$@"
 
-    # Clean up
-    rm "$TEMP_FILE"
+    # No need to clean up as we're using a static file
     '';
   };
 
