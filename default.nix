@@ -58,28 +58,7 @@ let
     '';
   };
 
-  o365fw = pkgs.stdenv.mkDerivation rec {
-    pname = "o365fw";
-    version = "0.1.0";
-
-    src = ./.;
-
-    buildInputs = with pkgs; [ bash curl jq ];
-
-    installPhase = ''
-      mkdir -p $out/bin
-      cp ${generateO365FWScript} $out/bin/genfwrules
-      chmod +x $out/bin/genfwrules
-    '';
-
-    meta = with pkgs.lib; {
-      description = "Generate iptables firewall rules for Office 365 endpoints";
-      homepage = "https://github.com/vadika/o365fw";
-      license = licenses.mit;
-      maintainers = with maintainers; [ vadika ];
-      platforms = platforms.linux;
-    };
-  };
+  o365fw = generateO365FWScript;
 in
 {
   inherit o365fw generateO365FWScript;
