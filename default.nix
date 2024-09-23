@@ -3,7 +3,7 @@
 let
   endpointsFile = pkgs.fetchurl {
     url = "https://endpoints.office.com/endpoints/worldwide?clientrequestid=b10c5ed1-bad1-445f-b386-b919946339a7";
-    sha256 = ""; # Replace with the actual SHA256 hash of the file
+    sha256 = "1zly0g23vray4wg6fjxxdys6zzksbymlzggbg75jxqcf8g9j6xnw"; # Replace with the actual SHA256 hash of the file
   };
 
   generateO365FWScript = pkgs.writeTextFile {
