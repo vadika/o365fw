@@ -15,7 +15,8 @@ let
 
     preprocess_url() {
         local url="$1"
-        echo "''${url/\*./\.}"
+        # Remove everything after and including the first wildcard
+        echo "''${url%%\**}"
     }
 
     generate_iptables_rules() {
@@ -34,8 +35,10 @@ let
 
         jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$ENDPOINTS_FILE" | sort -u | while read -r url; do
             processed_url=$(preprocess_url "$url")
-            echo "iptables -A OUTPUT -p tcp --dport 80 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
-            echo "iptables -A OUTPUT -p tcp --dport 443 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
+            if [[ "$processed_url" != "" ]]; then
+                echo "iptables -A OUTPUT -p tcp --dport 80 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
+                echo "iptables -A OUTPUT -p tcp --dport 443 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
+            fi
         done
     }
 
