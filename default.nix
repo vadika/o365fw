@@ -23,6 +23,30 @@ let
         echo "# Office 365 Firewall Rules"
         echo
 
+        # Default policies
+        echo "iptables -P INPUT DROP"
+        echo "iptables -P FORWARD DROP"
+        echo "iptables -P OUTPUT DROP"
+        echo "ip6tables -P INPUT DROP"
+        echo "ip6tables -P FORWARD DROP"
+        echo "ip6tables -P OUTPUT DROP"
+        echo
+
+        # Allow loopback
+        echo "iptables -A INPUT -i lo -j ACCEPT"
+        echo "iptables -A OUTPUT -o lo -j ACCEPT"
+        echo "ip6tables -A INPUT -i lo -j ACCEPT"
+        echo "ip6tables -A OUTPUT -o lo -j ACCEPT"
+        echo
+
+        # Allow established and related connections
+        echo "iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
+        echo "iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
+        echo "ip6tables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
+        echo "ip6tables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
+        echo
+
+        # Office 365 specific rules
         jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | {ips: .ips, tcpPorts: .tcpPorts, udpPorts: .udpPorts} | @json' "$ENDPOINTS_FILE" | while read -r json_data; do
             ips=$(echo "$json_data" | jq -r '.ips[]?')
             tcp_ports=$(echo "$json_data" | jq -r '.tcpPorts // empty')
@@ -60,6 +84,17 @@ let
                 echo "iptables -A OUTPUT -p tcp --dport 443 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
             fi
         done
+
+        # Log and drop all other traffic
+        echo
+        echo "iptables -A INPUT -j LOG --log-prefix \"[IPTABLES INPUT] : \" --log-level 7"
+        echo "iptables -A INPUT -j DROP"
+        echo "iptables -A OUTPUT -j LOG --log-prefix \"[IPTABLES OUTPUT] : \" --log-level 7"
+        echo "iptables -A OUTPUT -j DROP"
+        echo "ip6tables -A INPUT -j LOG --log-prefix \"[IP6TABLES INPUT] : \" --log-level 7"
+        echo "ip6tables -A INPUT -j DROP"
+        echo "ip6tables -A OUTPUT -j LOG --log-prefix \"[IP6TABLES OUTPUT] : \" --log-level 7"
+        echo "ip6tables -A OUTPUT -j DROP"
     }
 
     generate_iptables_rules
