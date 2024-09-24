@@ -54,7 +54,22 @@ let
   #runO365FWScript = pkgs.writeShellScriptBin "run-o365fw-script" ''
   #  ${generateO365FWScript}
   #'';
+  configureFirewall = pkgs.writeShellScriptBin "configure-firewall" ''
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Check if running as root
+    if [ "$(id -u)" -ne 0 ]; then
+      echo "This script must be run as root" >&2
+      exit 1
+    fi
+
+    # Apply the firewall rules
+    ${o365fw}
+
+    echo "Firewall rules for Office 365 have been applied."
+  '';
 in
 {
-  inherit o365fw ;
+  inherit o365fw configureFirewall;
 }
