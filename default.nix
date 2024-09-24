@@ -51,10 +51,10 @@ let
     ${generateO365FWScript} > $out
   '';
 
-  runO365FWScript = pkgs.writeShellScriptBin "run-o365fw-script" ''
-    ${generateO365FWScript}
-  '';
+  #runO365FWScript = pkgs.writeShellScriptBin "run-o365fw-script" ''
+  #  ${generateO365FWScript}
+  #'';
 in
 {
-  inherit o365fw runO365FWScript;
+  inherit o365fw ;
 }
