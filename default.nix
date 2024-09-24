@@ -65,7 +65,16 @@ let
     fi
 
     # Apply the firewall rules
-    ${o365fw}
+    echo "Applying Office 365 firewall rules..."
+    
+    while IFS= read -r line; do
+      if [[ $line =~ ^#.*$ ]]; then
+        echo "$line"
+      else
+        echo "Executing: $line"
+        eval "$line"
+      fi
+    done < ${o365fw}
 
     echo "Firewall rules for Office 365 have been applied."
   '';
