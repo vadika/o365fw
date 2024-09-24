@@ -23,12 +23,32 @@ let
         echo "# Office 365 Firewall Rules"
         echo
 
-        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .ips[]?' "$ENDPOINTS_FILE" | sort -u | while read -r ip; do
-            if [[ $ip == *":"* ]]; then
-                echo "ip6tables -A OUTPUT -d $ip -j ACCEPT"
-            else
-                echo "iptables -A OUTPUT -d $ip -j ACCEPT"
-            fi
+        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | {ips: .ips, tcpPorts: .tcpPorts, udpPorts: .udpPorts} | @json' "$ENDPOINTS_FILE" | while read -r json_data; do
+            ips=$(echo "$json_data" | jq -r '.ips[]?')
+            tcp_ports=$(echo "$json_data" | jq -r '.tcpPorts // empty')
+            udp_ports=$(echo "$json_data" | jq -r '.udpPorts // empty')
+
+            for ip in $ips; do
+                if [[ $ip == *":"* ]]; then
+                    if [[ -n "$tcp_ports" ]]; then
+                        echo "ip6tables -A OUTPUT -d $ip -p tcp -m multiport --dports $tcp_ports -j ACCEPT"
+                    else
+                        echo "ip6tables -A OUTPUT -d $ip -j ACCEPT"
+                    fi
+                    if [[ -n "$udp_ports" ]]; then
+                        echo "ip6tables -A OUTPUT -d $ip -p udp -m multiport --dports $udp_ports -j ACCEPT"
+                    fi
+                else
+                    if [[ -n "$tcp_ports" ]]; then
+                        echo "iptables -A OUTPUT -d $ip -p tcp -m multiport --dports $tcp_ports -j ACCEPT"
+                    else
+                        echo "iptables -A OUTPUT -d $ip -j ACCEPT"
+                    fi
+                    if [[ -n "$udp_ports" ]]; then
+                        echo "iptables -A OUTPUT -d $ip -p udp -m multiport --dports $udp_ports -j ACCEPT"
+                    fi
+                fi
+            done
         done
 
         echo
