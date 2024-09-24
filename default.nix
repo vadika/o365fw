@@ -78,7 +78,27 @@ let
 
     echo "Firewall rules for Office 365 have been applied."
   '';
+  configureFirewallString = pkgs.writeTextFile {
+    name = "configure-firewall-string";
+    text = ''
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      # Check if running as root
+      if [ "$(id -u)" -ne 0 ]; then
+        echo "This script must be run as root" >&2
+        exit 1
+      fi
+
+      # Apply the firewall rules
+      echo "Applying Office 365 firewall rules..."
+      
+      ${builtins.readFile o365fw}
+
+      echo "Firewall rules for Office 365 have been applied."
+    '';
+  };
 in
 {
-  inherit o365fw configureFirewall;
+  inherit o365fw configureFirewall configureFirewallString;
 }
