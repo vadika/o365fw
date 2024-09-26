@@ -55,21 +55,21 @@ let
             for ip in $ips; do
                 if [[ $ip == *":"* ]]; then
                     if [[ -n "$tcp_ports" ]]; then
-                        echo "ip6tables -A OUTPUT -d $ip -p tcp -m multiport --dports $tcp_ports -j ACCEPT"
+                        echo "ip6tables -A OUTPUT -d $ip -p tcp -m tcp -m multiport --dports $tcp_ports -j ACCEPT"
                     else
                         echo "ip6tables -A OUTPUT -d $ip -j ACCEPT"
                     fi
                     if [[ -n "$udp_ports" ]]; then
-                        echo "ip6tables -A OUTPUT -d $ip -p udp -m multiport --dports $udp_ports -j ACCEPT"
+                        echo "ip6tables -A OUTPUT -d $ip -p udp -m udp -m multiport --dports $udp_ports -j ACCEPT"
                     fi
                 else
                     if [[ -n "$tcp_ports" ]]; then
-                        echo "iptables -A OUTPUT -d $ip -p tcp -m multiport --dports $tcp_ports -j ACCEPT"
+                        echo "iptables -A OUTPUT -d $ip -p tcp -m tcp -m multiport --dports $tcp_ports -j ACCEPT"
                     else
                         echo "iptables -A OUTPUT -d $ip -j ACCEPT"
                     fi
                     if [[ -n "$udp_ports" ]]; then
-                        echo "iptables -A OUTPUT -d $ip -p udp -m multiport --dports $udp_ports -j ACCEPT"
+                        echo "iptables -A OUTPUT -d $ip -p udp -m udp -m multiport --dports $udp_ports -j ACCEPT"
                     fi
                 fi
             done
@@ -80,8 +80,8 @@ let
         jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$ENDPOINTS_FILE" | sort -u | while read -r url; do
             processed_url=$(preprocess_url "$url")
             if [[ "$processed_url" != "" ]]; then
-                echo "iptables -A OUTPUT -p tcp --dport 80 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
-                echo "iptables -A OUTPUT -p tcp --dport 443 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
+                echo "iptables -A OUTPUT -p tcp -m tcp --dport 80 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
+                echo "iptables -A OUTPUT -p tcp -m tcp --dport 443 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
             fi
         done
 
