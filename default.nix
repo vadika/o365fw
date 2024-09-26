@@ -6,6 +6,36 @@ let
     sha256 = "1zly0g23vray4wg6fjxxdys6zzksbymlzggbg75jxqcf8g9j6xnw";
   };
 
+  generateSquidConf = pkgs.writeShellScript "generate-squid-conf" ''
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    ENDPOINTS_FILE="${endpointsFile}"
+
+    echo "http_port 3128"
+    echo "acl SSL_ports port 443"
+    echo "acl Safe_ports port 80 443"
+    echo "acl CONNECT method CONNECT"
+    echo "http_access deny !Safe_ports"
+    echo "http_access deny CONNECT !SSL_ports"
+    echo "http_access allow localhost manager"
+    echo "http_access deny manager"
+
+    echo "# Office 365 ACLs"
+    jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$ENDPOINTS_FILE" | sort -u | while read -r url; do
+      echo "acl o365_domains dstdomain $url"
+    done
+
+    echo "http_access allow o365_domains"
+    echo "http_access deny all"
+  '';
+
+  squidConf = pkgs.runCommand "squid.conf" {
+    buildInputs = [ pkgs.jq ];
+  } ''
+    ${generateSquidConf} > $out
+  '';
+
   generateO365FWScript = pkgs.writeShellScript "generate-o365fw-script" ''
     #!/usr/bin/env bash
 
@@ -48,52 +78,21 @@ let
         echo "ip6tables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
         echo
 
-        # Office 365 specific rules
-        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | {ips: .ips, tcpPorts: .tcpPorts, udpPorts: .udpPorts} | @json' "$ENDPOINTS_FILE" | while read -r json_data; do
-            ips=$(echo "$json_data" | jq -r '.ips[]?')
-            tcp_ports=$(echo "$json_data" | jq -r '.tcpPorts // empty' | tr -d '[:blank:]*')
-            udp_ports=$(echo "$json_data" | jq -r '.udpPorts // empty' | tr -d '[:blank:]*')
-
-            for ip in $ips; do
-                if [[ $ip == *":"* ]]; then
-                    if [[ -n "$tcp_ports" ]]; then
-                        echo "ip6tables -A OUTPUT -d $ip -p tcp -m tcp -m multiport --dports $tcp_ports -j ACCEPT"
-                    else
-                        echo "ip6tables -A OUTPUT -d $ip -j ACCEPT"
-                    fi
-                    if [[ -n "$udp_ports" ]]; then
-                        echo "ip6tables -A OUTPUT -d $ip -p udp -m udp -m multiport --dports $udp_ports -j ACCEPT"
-                    fi
-                else
-                    if [[ -n "$tcp_ports" ]]; then
-                        echo "iptables -A OUTPUT -d $ip -p tcp -m tcp -m multiport --dports $tcp_ports -j ACCEPT"
-                    else
-                        echo "iptables -A OUTPUT -d $ip -j ACCEPT"
-                    fi
-                    if [[ -n "$udp_ports" ]]; then
-                        echo "iptables -A OUTPUT -d $ip -p udp -m udp -m multiport --dports $udp_ports -j ACCEPT"
-                    fi
-                fi
-            done
-        done
-
+        # Allow Squid proxy
+        echo "iptables -A INPUT -p tcp --dport 3128 -j ACCEPT"
+        echo "iptables -A OUTPUT -p tcp --dport 3128 -j ACCEPT"
+        echo "ip6tables -A INPUT -p tcp --dport 3128 -j ACCEPT"
+        echo "ip6tables -A OUTPUT -p tcp --dport 3128 -j ACCEPT"
         echo
 
-        # Allow HTTPS connections to Office 365 IP ranges
-        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .ips[]?' "$ENDPOINTS_FILE" | sort -u | while read -r ip; do
-            if [[ $ip == *":"* ]]; then
-                echo "ip6tables -A OUTPUT -d $ip -p tcp -m tcp --dport 443 -j ACCEPT"
-            else
-                echo "iptables -A OUTPUT -d $ip -p tcp -m tcp --dport 443 -j ACCEPT"
-            fi
-        done
-
-        # Allow HTTP connections (some services might still use it)
+        # Allow outgoing connections to Office 365 IP ranges through Squid proxy
         jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .ips[]?' "$ENDPOINTS_FILE" | sort -u | while read -r ip; do
             if [[ $ip == *":"* ]]; then
                 echo "ip6tables -A OUTPUT -d $ip -p tcp -m tcp --dport 80 -j ACCEPT"
+                echo "ip6tables -A OUTPUT -d $ip -p tcp -m tcp --dport 443 -j ACCEPT"
             else
                 echo "iptables -A OUTPUT -d $ip -p tcp -m tcp --dport 80 -j ACCEPT"
+                echo "iptables -A OUTPUT -d $ip -p tcp -m tcp --dport 443 -j ACCEPT"
             fi
         done
 
@@ -165,7 +164,22 @@ let
       echo "Firewall rules for Office 365 have been applied."
     '';
   };
+
+  startSquid = pkgs.writeShellScriptBin "start-squid" ''
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Check if running as root
+    if [ "$(id -u)" -ne 0 ]; then
+      echo "This script must be run as root" >&2
+      exit 1
+    fi
+
+    echo "Starting Squid proxy..."
+    ${pkgs.squid}/bin/squid -f ${squidConf}
+    echo "Squid proxy has been started."
+  '';
 in
 {
-  inherit o365fw configureFirewall configureFirewallString;
+  inherit o365fw configureFirewall configureFirewallString startSquid;
 }
