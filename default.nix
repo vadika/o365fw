@@ -39,6 +39,13 @@ let
         echo "ip6tables -A OUTPUT -o lo -j ACCEPT"
         echo
 
+        # Allow DNS (both UDP and TCP)
+        echo "iptables -A OUTPUT -p udp --dport 53 -j ACCEPT"
+        echo "iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT"
+        echo "ip6tables -A OUTPUT -p udp --dport 53 -j ACCEPT"
+        echo "ip6tables -A OUTPUT -p tcp --dport 53 -j ACCEPT"
+        echo
+
         # Allow established and related connections
         echo "iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
         echo "iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
