@@ -49,8 +49,8 @@ let
         # Office 365 specific rules
         jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | {ips: .ips, tcpPorts: .tcpPorts, udpPorts: .udpPorts} | @json' "$ENDPOINTS_FILE" | while read -r json_data; do
             ips=$(echo "$json_data" | jq -r '.ips[]?')
-            tcp_ports=$(echo "$json_data" | jq -r '.tcpPorts // empty' | tr ',' ',')
-            udp_ports=$(echo "$json_data" | jq -r '.udpPorts // empty' | tr ',' ',')
+            tcp_ports=$(echo "$json_data" | jq -r '.tcpPorts // empty' | tr -d ' ')
+            udp_ports=$(echo "$json_data" | jq -r '.udpPorts // empty' | tr -d ' ')
 
             for ip in $ips; do
                 if [[ $ip == *":"* ]]; then
