@@ -13,11 +13,6 @@ let
 
     ENDPOINTS_FILE="${endpointsFile}"
 
-    preprocess_url() {
-        local url="$1"
-        # Return the URL as-is without any filtering
-        echo "$url"
-    }
 
     generate_iptables_rules() {
         echo "# Office 365 Firewall Rules"
@@ -84,11 +79,21 @@ let
 
         echo
 
-        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$ENDPOINTS_FILE" | sort -u | while read -r url; do
-            processed_url=$(preprocess_url "$url")
-            if [[ "$processed_url" != "" ]]; then
-                echo "iptables -A OUTPUT -p tcp -m tcp --dport 80 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
-                echo "iptables -A OUTPUT -p tcp -m tcp --dport 443 -m string --string \"$processed_url\" --algo bm -j ACCEPT"
+        # Allow HTTPS connections to Office 365 IP ranges
+        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .ips[]?' "$ENDPOINTS_FILE" | sort -u | while read -r ip; do
+            if [[ $ip == *":"* ]]; then
+                echo "ip6tables -A OUTPUT -d $ip -p tcp -m tcp --dport 443 -j ACCEPT"
+            else
+                echo "iptables -A OUTPUT -d $ip -p tcp -m tcp --dport 443 -j ACCEPT"
+            fi
+        done
+
+        # Allow HTTP connections (some services might still use it)
+        jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .ips[]?' "$ENDPOINTS_FILE" | sort -u | while read -r ip; do
+            if [[ $ip == *":"* ]]; then
+                echo "ip6tables -A OUTPUT -d $ip -p tcp -m tcp --dport 80 -j ACCEPT"
+            else
+                echo "iptables -A OUTPUT -d $ip -p tcp -m tcp --dport 80 -j ACCEPT"
             fi
         done
 
