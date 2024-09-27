@@ -6,34 +6,33 @@ let
     sha256 = "1zly0g23vray4wg6fjxxdys6zzksbymlzggbg75jxqcf8g9j6xnw";
   };
 
-  generateSquidConf = pkgs.writeShellScript "generate-squid-conf" ''
+  generateTinyproxyConf = pkgs.writeShellScript "generate-tinyproxy-conf" ''
     #!/usr/bin/env bash
     set -euo pipefail
 
     ENDPOINTS_FILE="${endpointsFile}"
 
-    echo "http_port 3128"
-    echo "acl SSL_ports port 443"
-    echo "acl Safe_ports port 80 443"
-    echo "acl CONNECT method CONNECT"
-    echo "http_access deny !Safe_ports"
-    echo "http_access deny CONNECT !SSL_ports"
-    echo "http_access allow localhost manager"
-    echo "http_access deny manager"
+    echo "Port 3128"
+    echo "Timeout 600"
+    echo "DefaultErrorFile \"/usr/share/tinyproxy/default.html\""
+    echo "StatFile \"/usr/share/tinyproxy/stats.html\""
+    echo "LogFile \"/var/log/tinyproxy/tinyproxy.log\""
+    echo "LogLevel Info"
+    echo "PidFile \"/var/run/tinyproxy/tinyproxy.pid\""
 
-    echo "# Office 365 ACLs"
+    echo "# Office 365 Allow rules"
     jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$ENDPOINTS_FILE" | sort -u | while read -r url; do
-      echo "acl o365_domains dstdomain $url"
+      echo "Allow $url"
     done
 
-    echo "http_access allow o365_domains"
-    echo "http_access deny all"
+    echo "# Deny all other traffic"
+    echo "FilterDefaultDeny Yes"
   '';
 
-  squidConf = pkgs.runCommand "squid.conf" {
+  tinyproxyConf = pkgs.runCommand "tinyproxy.conf" {
     buildInputs = [ pkgs.jq ];
   } ''
-    ${generateSquidConf} > $out
+    ${generateTinyproxyConf} > $out
   '';
 
   generateO365FWScript = pkgs.writeShellScript "generate-o365fw-script" ''
@@ -78,7 +77,7 @@ let
         echo "ip6tables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
         echo
 
-        # Allow Squid proxy
+        # Allow Tinyproxy
         echo "iptables -A INPUT -p tcp --dport 3128 -j ACCEPT"
         echo "iptables -A OUTPUT -p tcp --dport 3128 -j ACCEPT"
         echo "ip6tables -A INPUT -p tcp --dport 3128 -j ACCEPT"
@@ -165,7 +164,7 @@ let
     '';
   };
 
-  startSquid = pkgs.writeShellScriptBin "start-squid" ''
+  startTinyproxy = pkgs.writeShellScriptBin "start-tinyproxy" ''
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -175,11 +174,11 @@ let
       exit 1
     fi
 
-    echo "Starting Squid proxy..."
-    ${pkgs.squid}/bin/squid -f ${squidConf}
-    echo "Squid proxy has been started."
+    echo "Starting Tinyproxy..."
+    ${pkgs.tinyproxy}/bin/tinyproxy -c ${tinyproxyConf}
+    echo "Tinyproxy has been started."
   '';
 in
 {
-  inherit o365fw configureFirewall configureFirewallString startSquid;
+  inherit o365fw configureFirewall configureFirewallString startTinyproxy;
 }
