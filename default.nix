@@ -22,13 +22,9 @@ let
 
     echo "# Office 365 Allow rules"
     jq -r '.[] | select(.category == "Optimize" or .category == "Allow" or .category == "Default") | .urls[]?' "$ENDPOINTS_FILE" | sort -u | while read -r url; do
-      if [[ $url == \** ]]; then
-        # For wildcard domains, we'll allow the base domain
-        base_domain=$(echo "$url" | sed 's/^\*\.//')
-        echo "Allow .$base_domain"
-      else
-        echo "Allow $url"
-      fi
+      # Remove any wildcards and leading dots
+      clean_url=$(echo "$url" | sed -e 's/^\*\.//' -e 's/^\.*//')
+      echo "Allow $clean_url"
     done
 
     echo "# Deny all other traffic"
